@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NFC Access Server</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; text-align: center; }
+        table { margin: 20px auto; border-collapse: collapse; width: 80%; background: white; }
+        th, td { padding: 12px; border: 1px solid #ddd; }
+        .granted { color: green; font-weight: bold; }
+        .denied { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>NFC Verification Dashboard</h1>
+    <table>
+        <tr><th>Time</th><th>Card UID</th><th>Status</th></tr>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.timestamp }}</td>
+            <td>{{ log.scanned_uid }}</td>
+            <td class="{% if log.granted %}granted{% else %}denied{% endif %}">
+                {% if log.granted %}ACCESS GRANTED{% else %}ACCESS DENIED{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
