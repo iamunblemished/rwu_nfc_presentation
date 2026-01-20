@@ -56,10 +56,11 @@ ROOT_URLCONF = 'nfc_server.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [], # You can leave this empty if using APP_DIRS: True
+        'APP_DIRS': True, # This tells Django to look in each app's /templates/ folder
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',

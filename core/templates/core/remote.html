@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RWU Appliance Console</title>
+    <style>
+        body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; padding: 50px; }
+        input { background: #222; border: 1px solid #00ff00; color: #00ff00; padding: 10px; width: 300px; }
+        button { background: #00ff00; color: #000; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>TERMINAL INPUT: APPLIANCE NODE</h1>
+    <p>Type a message to send to the CLI terminal:</p>
+    
+    <input type="text" id="userMsg" placeholder="Enter command..." maxlength="32">
+    <button onclick="transmit()">SEND</button>
+
+    <script>
+        function transmit() {
+            let msg = document.getElementById('userMsg').value;
+            let formData = new FormData();
+            formData.append('message', msg);
+
+            // This sends the data to your working JSON endpoint
+            fetch('/appliance-msg/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => alert("Transmitted: " + data.content))
+            .catch(error => alert("Error: " + error));
+        }
+    </script>
+</body>
+</html>
