@@ -1,110 +1,83 @@
-# RWU NFC Verification Server
+# RWU NFC Verification Server & Appliance Controller
 
-This project is a secure IoT Gateway built with **Django 6.0** on a **Raspberry Pi 3B+**. It serves as the central "brain" for an NFC-based access control system, using **AES-128 encryption** to verify identities from external microcontrollers before granting access to home products.
+This project is a secure IoT Gateway built with **Django 6.0** and designed to run on a **Raspberry Pi 3B+**. It acts as the central "brain" for an NFC access control system, using **AES-128 encryption** to communicate with hardware nodes and control external appliances.
 
-## 🚀 Features
+## 🚀 System Architecture
 
-* **Encrypted Handshake:** Uses AES-128 (ECB mode) to decrypt incoming UID payloads, preventing plain-text sniffing on the local network.
-* **Live Access Dashboard:** A real-time web interface that displays scan attempts, timestamps, and authorization status.
-* **Administrative Control:** Built-in management console to add/revoke authorized NFC tags and view historical access logs.
-* **Secure Secrets:** Sensitive keys (Django Secret Key and AES Shared Secret) are managed via environment variables to keep them off GitHub.
+The system is split into three main parts:
 
-## 🛠 Tech Stack
+1. **The Gateway (This Server):** Manages the database of authorized cards, processes encrypted scans, and provides a web dashboard.
+2. **The Bridge (`bridge_sensor.py`):** A script that interface with the physical NFC reader, encrypts the data, and sends it to this server.
+3. **The Appliance Node:** A remote CLI or hardware device (like lights or a coffee machine) that polls this server to see if it should "unlock" or perform an action based on a successful scan.
 
-* **Framework:** Django 6.0
-* **Security:** PyCryptodome (AES Encryption)
-* **Database:** SQLite3
-* **Frontend:** HTMX (for live log updates)
+## 📁 Detailed Code Breakdown
 
----
+### 1. The Security Layer (`core/views.py` & `core/crypto_utils.py`)
 
-## 💻 Installation & Setup
+The system uses a **Shared Secret** approach for security.
 
-Your teammate should follow these steps to get the server running on their own machine or Pi:
+* **AES-128 Encryption:** Incoming data is not sent in plain text. The hardware node must encrypt the NFC UID using the `SHARED_SECRET_KEY` before sending it to the `/verify/` endpoint.
+* **Decryption:** The server uses `PyCryptodome` to decrypt the payload, ensuring that even if a bad actor sniffs your network traffic, they cannot see the actual ID of your keycards.
 
-### 1. Clone and Prepare Environment
+### 2. The Database (`core/models.py`)
+
+* **Keycards:** This table stores the unique IDs of allowed tags and their owners. Access is only granted if a scanned UID exists here and is marked as `is_active`.
+* **Access Logs:** Every single scan attempt—whether granted or denied—is recorded with a timestamp for security auditing.
+
+### 3. The API Endpoints (`core/urls.py`)
+
+* **`/verify/`**: The hardware bridge posts encrypted payloads here to request access.
+* **`/appliance-msg/`**: Used by the remote "Appliance Node" (CLI). It polls this endpoint to check if the system is currently `authorized` and to receive custom messages sent from the server.
+* **`/dashboard/`**: A web UI for the user to monitor all activity in real-time.
+* **`/remote/`**: A "Terminal Input" page where you can type a message to be displayed on the remote appliance's CLI.
+
+### 4. Automation & Webhooks
+
+When a valid card is swiped, the server doesn't just unlock itself; it can trigger external devices. The `fire_webhooks` function is configured to send POST requests to other IP addresses on your network (e.g., smart lights or coffee machines) the moment access is granted.
+
+## 🛠 Setup & Installation
+
+### 1. Clone and Prepare
 
 ```bash
 git clone https://github.com/iamunblemished/rwu_nfc_presentation.git
 cd rwu_nfc_presentation
-
-# Create and activate virtual environment
 python3 -m venv env
-source env/bin/activate  # Windows: .\env\Scripts\activate
-
-# Install dependencies
+source env/bin/activate
 pip install -r requirements.txt
 
 ```
 
-### 2. Configure Environment Variables
+### 2. Configuration (`.env`)
 
-You **must** create a `.env` file in the root directory (where `manage.py` is located) for the project to start.
-
-```bash
-nano .env
-
-```
-
-Add the following content:
+Create a `.env` file in the root directory. You must define your keys here to keep them secure:
 
 ```text
-DJANGO_SECRET_KEY='your-random-django-key'
-SHARED_SECRET_KEY='1234567890123456'  # Must be exactly 16 characters
+DJANGO_SECRET_KEY='your-private-key'
+SHARED_SECRET_KEY='1234567890123456'  # 16-character key for AES
 
 ```
 
-### 3. Initialize Database
+### 3. Execution
+
+You can use the provided shell script to launch the bridge and the server simultaneously:
 
 ```bash
-python manage.py migrate
-python manage.py createsuperuser  # Create your admin login
+chmod +x start_demo.sh
+./start_demo.sh
 
 ```
 
-### 4. Run the Server
+## 🧠 Logical Workflow
 
-```bash
-python manage.py runserver 0.0.0.0:8000
-
-```
+1. **NFC Tag Swiped** → `bridge_sensor.py` reads the UID.
+2. **Encryption** → The bridge encrypts the UID and POSTs it to the server.
+3. **Verification** → Server decrypts the UID and checks the `Keycard` database.
+4. **Action** → If valid, the global `is_authorized_state` becomes `True`, webhooks are fired, and the `AccessLog` is updated.
+5. **Remote Feedback** → The Appliance CLI (polling `/appliance-msg/`) sees the authorized state and unlocks.
 
 ---
 
-## 🔍 Usage
-
-### Accessing the Interface
-
-* **Admin Panel:** `http://localhost:8000/admin/` (Manage authorized UIDs here).
-* **Live Dashboard:** `http://localhost:8000/dashboard/` (Monitor scans).
-
-### Verification API
-
-The hardware (or simulation script) sends an encrypted POST request to:
-`POST /verify/`
-**Payload Format:**
-
-```json
-{
-    "payload": "Base64_Encrypted_String"
-}
-
-```
-
-### Testing with Simulation
-
-To test the server without hardware, run the `simulate_swipe.py` script included in the repo:
-
-```bash
-python simulate_swipe.py
-
-```
-
----
-
-## 🔒 Security Note
-
-This project uses a **Shared Secret** approach for simplicity in this presentation. In a production environment, it is recommended to transition to **AES-CBC or GCM mode** with a unique Initialization Vector (IV) for every scan to prevent replay attacks.
-
-**Author:** [Your Name / iamunblemished]
 **Project:** RWU NFC Presentation Gateway
+
+**Developed by:** iamunblemished
